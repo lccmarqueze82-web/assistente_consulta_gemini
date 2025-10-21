@@ -1,4 +1,3 @@
-# assistente_consulta_gemini.py
 import streamlit as st
 from google import genai # Importar a biblioteca do Google GenAI
 from google.genai.errors import APIError
@@ -123,39 +122,24 @@ if caixa4:
             resposta = gemini_reply(system_role_chat, caixa4)
             st.markdown(f"**Gemini:** {resposta}")
 
+# --- ANOTAÇÕES HISTÓRICAS (MANTIDAS COMO COMENTÁRIOS) ---
+# O bloco de código abaixo estava causando um erro de sintaxe (duplicação de função e texto solto).
+# Ele foi removido e a função gemini_reply original (definida acima) foi mantida.
 #
-
+# # Modelo:
+# # Defini um modelo Gemini: GEMINI_MODEL = "gemini-2.5-flash". Você pode usar outro modelo, como gemini-2.5-pro, se precisar de raciocínio mais complexo.
+# # Função de Chamada (gemini_reply):
+# # Substituímos a chamada client.chat.completions.create(...) pela chamada client.models.generate_content(...).
+# # O papel do sistema (o role: "system") no Gemini é passado através do parâmetro config como system_instruction. Isso é crucial para as etapas 2 e 3.
 #
-
-    #
-
-  #
-
-#
-
-#
-
-#
-
-#    Modelo:
-
-#        Defini um modelo Gemini: GEMINI_MODEL = "gemini-2.5-flash". Você pode usar outro modelo, como gemini-2.5-pro, se precisar de raciocínio mais complexo.
-
-#    Função de Chamada (gemini_reply):
-
- #       Substituímos a chamada client.chat.completions.create(...) pela chamada client.models.generate_content(...).
-
- #       O papel do sistema (o role: "system") no Gemini é passado através do parâmetro config como system_instruction. Isso é crucial para as etapas 2 e 3.
-
-Python
-
-def gemini_reply(system_instruction, text_input):
-    config = genai.types.GenerateContentConfig(
-        system_instruction=system_instruction
-    )
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=text_input,
-        config=config 
-    )
-    return response.text.strip()
+# # A redefinição de gemini_reply abaixo foi removida:
+# # def gemini_reply(system_instruction, text_input):
+# #     config = genai.types.GenerateContentConfig(
+# #         system_instruction=system_instruction
+# #     )
+# #     response = client.models.generate_content(
+# #         model=GEMINI_MODEL,
+# #         contents=text_input,
+# #         config=config 
+# #     )
+# #     return response.text.strip()
