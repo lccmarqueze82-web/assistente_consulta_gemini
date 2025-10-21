@@ -123,29 +123,29 @@ if caixa4:
             resposta = gemini_reply(system_role_chat, caixa4)
             st.markdown(f"**Gemini:** {resposta}")
 
-Principais Alterações:
+#
 
-    Importação:
+#
 
-        Substituímos from openai import OpenAI por from google import genai.
+    #
 
-        Importamos from google.genai.errors import APIError para tratamento de erros.
+  #
 
-    Inicialização do Cliente:
+#
 
-        Substituímos client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"]) por client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"]).
+#
 
-        Observação: Você deve ter sua chave de API do Google Gemini salva no arquivo .streamlit/secrets.toml como GOOGLE_API_KEY.
+#
 
-    Modelo:
+#    Modelo:
 
-        Defini um modelo Gemini: GEMINI_MODEL = "gemini-2.5-flash". Você pode usar outro modelo, como gemini-2.5-pro, se precisar de raciocínio mais complexo.
+#        Defini um modelo Gemini: GEMINI_MODEL = "gemini-2.5-flash". Você pode usar outro modelo, como gemini-2.5-pro, se precisar de raciocínio mais complexo.
 
-    Função de Chamada (gemini_reply):
+#    Função de Chamada (gemini_reply):
 
-        Substituímos a chamada client.chat.completions.create(...) pela chamada client.models.generate_content(...).
+ #       Substituímos a chamada client.chat.completions.create(...) pela chamada client.models.generate_content(...).
 
-        O papel do sistema (o role: "system") no Gemini é passado através do parâmetro config como system_instruction. Isso é crucial para as etapas 2 e 3.
+ #       O papel do sistema (o role: "system") no Gemini é passado através do parâmetro config como system_instruction. Isso é crucial para as etapas 2 e 3.
 
 Python
 
