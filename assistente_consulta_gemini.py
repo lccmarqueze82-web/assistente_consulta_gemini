@@ -111,7 +111,12 @@ def send_chat():
         
 # Novo callback para o botão COPIAR
 def copy_caixa2_content():
-    """Define a flag para exibir o conteúdo da Caixa 2 para cópia manual."""
+    """
+    Define a flag para exibir/ocultar o conteúdo da Caixa 2 para cópia manual.
+    Nota: A seleção automática de texto em um st.text_area por meio de um botão não é 
+    suportada nativamente pelo Streamlit devido a restrições do navegador/DOM.
+    Por isso, usamos o componente st.code, que tem um botão de cópia embutido.
+    """
     # Apenas inverte o estado para exibir/ocultar a caixa de código
     st.session_state["show_manual_copy"] = not st.session_state.get("show_manual_copy", False)
         
@@ -158,8 +163,9 @@ with colC:
 
 # --- Exibição do Bloco de Cópia Manual (Novo elemento) ---
 if st.session_state.get("show_manual_copy") and caixa2_has_content:
-    st.info("O conteúdo da Caixa 2 foi exibido abaixo. **Use o botão de cópia nativo** do Streamlit dentro do bloco para copiá-lo.")
-    st.code(caixa2_content)
+    st.markdown("### 📋 Conteúdo da Caixa 2 para Cópia Manual")
+    st.warning("⚠️ **ATENÇÃO:** O Python/Streamlit não pode selecionar o texto diretamente. **Use o botão 'Copy' (dois quadrados) no canto superior direito deste bloco** para copiar o texto com um clique.")
+    st.code(caixa2_content, language="markdown") # Usa 'markdown' para melhor visualização de texto
 elif st.session_state.get("show_manual_copy") and not caixa2_has_content:
     # Se o botão foi clicado, mas o conteúdo foi removido manualmente, ou houve race condition
     st.warning("A Caixa 2 está vazia. Não há conteúdo para copiar.")
