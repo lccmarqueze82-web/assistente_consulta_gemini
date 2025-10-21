@@ -53,7 +53,14 @@ def gemini_reply(system_instruction, text_input):
         st.error(f"Erro inesperado: {e}")
         return f"ERRO INESPERADO: {e}"
 
-# --- Funções de Callback (NOVAS) ---
+# --- Funções de Callback ---
+
+def clear_fields():
+    """Callback para a função LIMPAR: Reseta todos os campos de estado da sessão."""
+    for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response"]:
+        st.session_state[key] = ""
+    # st.rerun() não é necessário em um callback, a mudança de estado já dispara a re-execução,
+    # mas o Streamlit é mais tolerante ao st.rerun() dentro de um callback.
 
 def apply_pec1():
     """Callback para a Etapa 2: Aplica Prompt PEC1 e atualiza Caixa 2."""
@@ -122,11 +129,8 @@ st.text_input("CAIXA 4 - Chat com Gemini", value=st.session_state.get("caixa4", 
 colA, colB, colC = st.columns([1, 1, 2])
 
 with colA:
-    if st.button("🧹 LIMPAR"):
-        # O botão LIMPAR pode usar a lógica st.rerun() ou um callback, aqui mantemos a lógica original.
-        for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response"]:
-            st.session_state[key] = ""
-        st.rerun()
+    # AGORA USAMOS O CALLBACK clear_fields
+    st.button("🧹 LIMPAR", on_click=clear_fields) 
 
 with colB:
     if st.button("📋 COPIAR CAIXA 2"):
