@@ -59,8 +59,6 @@ def clear_fields():
     """Callback para a função LIMPAR: Reseta todos os campos de estado da sessão."""
     for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response"]:
         st.session_state[key] = ""
-    # st.rerun() não é necessário em um callback, a mudança de estado já dispara a re-execução,
-    # mas o Streamlit é mais tolerante ao st.rerun() dentro de um callback.
 
 def apply_pec1():
     """Callback para a Etapa 2: Aplica Prompt PEC1 e atualiza Caixa 2."""
@@ -71,6 +69,7 @@ def apply_pec1():
     with st.spinner("Aplicando Prompt PEC1..."):
         system_role_pec1 = "Você é um assistente de processamento de texto. Sua tarefa é aplicar o 'Prompt PEC1 atualizado' ao texto de entrada, formatando e estruturando-o conforme as diretrizes do PEC1."
         
+        # O modelo processa o conteúdo da Caixa 1
         st.session_state["caixa2"] = gemini_reply(
             system_role_pec1,
             st.session_state["caixa1"]
@@ -86,6 +85,7 @@ def generate_suggestions():
     with st.spinner("Analisando diagnóstico..."):
         system_role_sugestoes = "Você é um assistente médico de IA. Analise cuidadosamente o texto processado, que já está formatado com o Prompt PEC1, e gere sugestões de diagnósticos diferenciais e condutas médicas apropriadas. Seja claro, conciso e use linguagem médica profissional."
         
+        # O modelo processa o conteúdo ATUALIZADO (possivelmente editado manualmente) da Caixa 2
         st.session_state["caixa3"] = gemini_reply(
             system_role_sugestoes,
             st.session_state["caixa2"]
@@ -106,30 +106,35 @@ def send_chat():
         st.session_state["chat_response"] = resposta
         
 # --- Inicializa o estado de exibição (IMPORTANTE) ---
-if "chat_response" not in st.session_state:
-    st.session_state["chat_response"] = ""
+# Usamos o .get() no layout, mas esta inicialização garante que o estado existe
+if "caixa1" not in st.session_state: st.session_state["caixa1"] = ""
+if "caixa2" not in st.session_state: st.session_state["caixa2"] = ""
+if "caixa3" not in st.session_state: st.session_state["caixa3"] = ""
+if "caixa4" not in st.session_state: st.session_state["caixa4"] = ""
+if "chat_response" not in st.session_state: st.session_state["chat_response"] = ""
 
 
-# --- Layout das Caixas de Texto (usando st.session_state para pre-preencher) ---
+# --- Layout das Caixas de Texto (Todas Editáveis) ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    # Usamos o valor do session_state, mas o key faz a mágica de sincronizar
-    st.text_area("CAIXA 1 - Informação Crua", value=st.session_state.get("caixa1", ""), height=250, key="caixa1")
+    st.text_area("CAIXA 1 - Informação Crua", height=250, key="caixa1")
 
 with col2:
-    st.text_area("CAIXA 2 - Prompt PEC1 Atualizado", value=st.session_state.get("caixa2", ""), height=250, key="caixa2")
+    # EDITÁVEL: Key="caixa2" garante que a edição manual é salva no session_state
+    st.text_area("CAIXA 2 - Prompt PEC1 Atualizado", height=250, key="caixa2")
 
 with col3:
-    st.text_area("CAIXA 3 - Sugestões e Discussão", value=st.session_state.get("caixa3", ""), height=250, key="caixa3")
+    # EDITÁVEL: Key="caixa3" garante que a edição manual é salva no session_state
+    st.text_area("CAIXA 3 - Sugestões e Discussão", height=250, key="caixa3")
 
-st.text_input("CAIXA 4 - Chat com Gemini", value=st.session_state.get("caixa4", ""), key="caixa4")
+st.text_input("CAIXA 4 - Chat com Gemini", key="caixa4")
 
-# --- Layout dos Botões (AGORA USANDO CALLBACKS) ---
+# --- Layout dos Botões ---
 colA, colB, colC = st.columns([1, 1, 2])
 
 with colA:
-    # AGORA USAMOS O CALLBACK clear_fields
+    # Botão LIMPAR usa o callback clear_fields
     st.button("🧹 LIMPAR", on_click=clear_fields) 
 
 with colB:
@@ -138,16 +143,14 @@ with colB:
         st.code(st.session_state.get("caixa2", "")) 
 
 with colC:
-    # O botão AGORA usa on_click=apply_pec1
+    # Botão Aplicar usa o callback apply_pec1
     st.button("⚙️ Aplicar Prompt PEC1", on_click=apply_pec1)
 
 # --- Botão Etapa 3 (Também usando Callback) ---
-# Exibimos o botão separadamente, e ele só aparece se a caixa 2 estiver preenchida.
 if st.session_state.get("caixa2"):
     st.button("💬 Gerar Sugestões (Caixa 3)", on_click=generate_suggestions)
 
 # --- Botão Etapa 4 (Também usando Callback) ---
-# Exibimos o botão de chat e, se a resposta existir, exibimos o resultado abaixo.
 if st.session_state.get("caixa4"):
     st.button("💭 Enviar Chat (Caixa 4)", on_click=send_chat)
 
