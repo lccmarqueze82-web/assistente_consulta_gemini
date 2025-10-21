@@ -7,8 +7,6 @@ st.set_page_config(page_title="Assistente de Consulta Gemini", layout="wide")
 st.title("🩺 Assistente de Consulta Gemini")
 
 # Inicializa o cliente Gemini
-# A chave de API deve ser configurada em .streamlit/secrets.toml como
-# GOOGLE_API_KEY="SUA_CHAVE_AQUI"
 try:
     client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 except KeyError:
@@ -23,14 +21,14 @@ GEMINI_MODEL = "gemini-2.5-flash"
 
 st.markdown("""
 O assistente trabalha em 4 etapas:
-1️⃣ **Caixa 1** – Informação crua  
-2️⃣ **Caixa 2** – Aplica Prompt PEC1 atualizado  
-3️⃣ **Caixa 3** – Sugestões e condutas  
-4️⃣ **Caixa 4** – Chat livre com Gemini  
+1️⃣ **Caixa 1** – Informação crua  
+2️⃣ **Caixa 2** – Aplica Prompt PEC1 atualizado  
+3️⃣ **Caixa 3** – Sugestões e condutas  
+4️⃣ **Caixa 4** – Chat livre com Gemini  
 ---
 """)
 
-# --- Função de Chamada do Gemini (Mantida) ---
+# --- Função de Chamada do Gemini ---
 def gemini_reply(system_instruction, text_input):
     """Função para chamar o modelo Gemini com instruções de sistema."""
     
@@ -57,7 +55,7 @@ def gemini_reply(system_instruction, text_input):
 
 def clear_fields():
     """Callback para a função LIMPAR: Reseta todos os campos de estado da sessão."""
-    for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response"]:
+    for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response", "show_manual_copy"]:
         st.session_state[key] = ""
 
 def apply_pec1():
@@ -66,10 +64,12 @@ def apply_pec1():
         st.warning("A Caixa 1 está vazia. Insira a informação crua primeiro.")
         return
 
+    # Limpa a flag de cópia para não mostrar a caixa de código antiga
+    st.session_state["show_manual_copy"] = False
+
     with st.spinner("Aplicando Prompt PEC1..."):
         system_role_pec1 = "Você é um assistente de processamento de texto. Sua tarefa é aplicar o 'Prompt PEC1 atualizado' ao texto de entrada, formatando e estruturando-o conforme as diretrizes do PEC1."
         
-        # O modelo processa o conteúdo da Caixa 1
         st.session_state["caixa2"] = gemini_reply(
             system_role_pec1,
             st.session_state["caixa1"]
@@ -82,10 +82,12 @@ def generate_suggestions():
         st.warning("A Caixa 2 está vazia. Aplique o Prompt PEC1 (Etapa 2) primeiro.")
         return
 
+    # Limpa a flag de cópia
+    st.session_state["show_manual_copy"] = False
+
     with st.spinner("Analisando diagnóstico..."):
         system_role_sugestoes = "Você é um assistente médico de IA. Analise cuidadosamente o texto processado, que já está formatado com o Prompt PEC1, e gere sugestões de diagnósticos diferenciais e condutas médicas apropriadas. Seja claro, conciso e use linguagem médica profissional."
         
-        # O modelo processa o conteúdo ATUALIZADO (possivelmente editado manualmente) da Caixa 2
         st.session_state["caixa3"] = gemini_reply(
             system_role_sugestoes,
             st.session_state["caixa2"]
@@ -98,20 +100,28 @@ def send_chat():
         st.warning("A Caixa 4 está vazia. Digite sua pergunta.")
         return
 
+    # Limpa a flag de cópia
+    st.session_state["show_manual_copy"] = False
+
     with st.spinner("Respondendo..."):
         system_role_chat = "Você é um assistente de chat geral e prestativo. Responda à pergunta do usuário. Mantenha o contexto de ser um assistente, mas responda de forma livre."
         
         resposta = gemini_reply(system_role_chat, st.session_state["caixa4"])
-        # Armazenamos a resposta em um novo campo para exibição, para não conflitar com a caixa de input
         st.session_state["chat_response"] = resposta
         
+# Novo callback para o botão COPIAR
+def copy_caixa2_content():
+    """Define a flag para exibir o conteúdo da Caixa 2 para cópia manual."""
+    # Apenas inverte o estado para exibir/ocultar a caixa de código
+    st.session_state["show_manual_copy"] = not st.session_state.get("show_manual_copy", False)
+        
 # --- Inicializa o estado de exibição (IMPORTANTE) ---
-# Usamos o .get() no layout, mas esta inicialização garante que o estado existe
 if "caixa1" not in st.session_state: st.session_state["caixa1"] = ""
 if "caixa2" not in st.session_state: st.session_state["caixa2"] = ""
 if "caixa3" not in st.session_state: st.session_state["caixa3"] = ""
 if "caixa4" not in st.session_state: st.session_state["caixa4"] = ""
 if "chat_response" not in st.session_state: st.session_state["chat_response"] = ""
+if "show_manual_copy" not in st.session_state: st.session_state["show_manual_copy"] = False
 
 
 # --- Layout das Caixas de Texto (Todas Editáveis) ---
@@ -121,11 +131,9 @@ with col1:
     st.text_area("CAIXA 1 - Informação Crua", height=250, key="caixa1")
 
 with col2:
-    # EDITÁVEL: Key="caixa2" garante que a edição manual é salva no session_state
     st.text_area("CAIXA 2 - Prompt PEC1 Atualizado", height=250, key="caixa2")
 
 with col3:
-    # EDITÁVEL: Key="caixa3" garante que a edição manual é salva no session_state
     st.text_area("CAIXA 3 - Sugestões e Discussão", height=250, key="caixa3")
 
 st.text_input("CAIXA 4 - Chat com Gemini", key="caixa4")
@@ -134,18 +142,21 @@ st.text_input("CAIXA 4 - Chat com Gemini", key="caixa4")
 colA, colB, colC = st.columns([1, 1, 2])
 
 with colA:
-    # Botão LIMPAR usa o callback clear_fields
     st.button("🧹 LIMPAR", on_click=clear_fields) 
 
 with colB:
-    if st.button("📋 COPIAR CAIXA 2"):
-        st.write("Conteúdo da Caixa 2 copiado (copie manualmente abaixo):")
-        st.code(st.session_state.get("caixa2", "")) 
+    # Botão COPIAR usa o novo callback
+    label_copy = "📋 OCULTAR CÓPIA" if st.session_state.get("show_manual_copy") else "📋 COPIAR CAIXA 2"
+    st.button(label_copy, on_click=copy_caixa2_content) 
 
 with colC:
-    # Botão Aplicar usa o callback apply_pec1
     st.button("⚙️ Aplicar Prompt PEC1", on_click=apply_pec1)
 
+# --- Exibição do Bloco de Cópia Manual (Novo elemento) ---
+if st.session_state.get("show_manual_copy"):
+    st.info("O conteúdo da Caixa 2 foi exibido abaixo. Clique no botão de cópia dentro do bloco para copiá-lo manualmente.")
+    st.code(st.session_state.get("caixa2", ""))
+    
 # --- Botão Etapa 3 (Também usando Callback) ---
 if st.session_state.get("caixa2"):
     st.button("💬 Gerar Sugestões (Caixa 3)", on_click=generate_suggestions)
