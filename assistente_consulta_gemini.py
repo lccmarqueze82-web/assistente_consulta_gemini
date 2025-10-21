@@ -68,7 +68,7 @@ def apply_pec1():
     st.session_state["show_manual_copy"] = False
 
     with st.spinner("Aplicando Prompt PEC1..."):
-        system_role_pec1 = "Você é um assistente de processamento de texto. Sua tarefa é aplicar o 'Prompt PEC1 atualizado' ao texto de entrada, formatando e estruturando-o conforme as diretrizes do PEC1."
+        system_role_pec1 = "Você é um assistente de processamento de texto. Sua tarefa é aplicar o 'Prompt PEC1 atualizado' ao texto de entrada, formatando e estruturando-lo conforme as diretrizes do PEC1."
         
         st.session_state["caixa2"] = gemini_reply(
             system_role_pec1,
@@ -138,6 +138,10 @@ with col3:
 
 st.text_input("CAIXA 4 - Chat com Gemini", key="caixa4")
 
+# Determina se a Caixa 2 tem conteúdo
+caixa2_content = st.session_state.get("caixa2", "").strip()
+caixa2_has_content = bool(caixa2_content)
+
 # --- Layout dos Botões ---
 colA, colB, colC = st.columns([1, 1, 2])
 
@@ -145,20 +149,24 @@ with colA:
     st.button("🧹 LIMPAR", on_click=clear_fields) 
 
 with colB:
-    # Botão COPIAR usa o novo callback
+    # Botão COPIAR usa o novo callback e é desabilitado se a Caixa 2 estiver vazia
     label_copy = "📋 OCULTAR CÓPIA" if st.session_state.get("show_manual_copy") else "📋 COPIAR CAIXA 2"
-    st.button(label_copy, on_click=copy_caixa2_content) 
+    st.button(label_copy, on_click=copy_caixa2_content, disabled=not caixa2_has_content) 
 
 with colC:
     st.button("⚙️ Aplicar Prompt PEC1", on_click=apply_pec1)
 
 # --- Exibição do Bloco de Cópia Manual (Novo elemento) ---
-if st.session_state.get("show_manual_copy"):
-    st.info("O conteúdo da Caixa 2 foi exibido abaixo. Clique no botão de cópia dentro do bloco para copiá-lo manualmente.")
-    st.code(st.session_state.get("caixa2", ""))
+if st.session_state.get("show_manual_copy") and caixa2_has_content:
+    st.info("O conteúdo da Caixa 2 foi exibido abaixo. **Use o botão de cópia nativo** do Streamlit dentro do bloco para copiá-lo.")
+    st.code(caixa2_content)
+elif st.session_state.get("show_manual_copy") and not caixa2_has_content:
+    # Se o botão foi clicado, mas o conteúdo foi removido manualmente, ou houve race condition
+    st.warning("A Caixa 2 está vazia. Não há conteúdo para copiar.")
+    st.session_state["show_manual_copy"] = False # Limpa a flag
     
 # --- Botão Etapa 3 (Também usando Callback) ---
-if st.session_state.get("caixa2"):
+if caixa2_has_content:
     st.button("💬 Gerar Sugestões (Caixa 3)", on_click=generate_suggestions)
 
 # --- Botão Etapa 4 (Também usando Callback) ---
