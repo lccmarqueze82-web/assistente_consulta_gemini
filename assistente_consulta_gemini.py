@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai # Importar a biblioteca do Google GenAI
+from google import genai 
 from google.genai.errors import APIError
 
 st.set_page_config(page_title="Assistente de Consulta Gemini", layout="wide")
@@ -30,40 +30,7 @@ O assistente trabalha em 4 etapas:
 ---
 """)
 
-# --- Layout das Caixas de Texto ---
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    caixa1 = st.text_area("CAIXA 1 - Informação Crua", height=250, key="caixa1")
-
-with col2:
-    caixa2 = st.text_area("CAIXA 2 - Prompt PEC1 Atualizado", height=250, key="caixa2")
-
-with col3:
-    caixa3 = st.text_area("CAIXA 3 - Sugestões e Discussão", height=250, key="caixa3")
-
-caixa4 = st.text_input("CAIXA 4 - Chat com Gemini", key="caixa4")
-
-# --- Layout dos Botões ---
-colA, colB, colC = st.columns([1, 1, 2])
-
-with colA:
-    if st.button("🧹 LIMPAR"):
-        for key in ["caixa1","caixa2","caixa3","caixa4"]:
-            # Limpa o valor das chaves no session_state
-            st.session_state[key] = ""
-        st.rerun()
-
-with colB:
-    if st.button("📋 COPIAR CAIXA 2"):
-        st.write("Conteúdo da Caixa 2 copiado (copie manualmente abaixo):")
-        # st.code exibe o conteúdo para que o usuário possa copiar manualmente
-        st.code(st.session_state.get("caixa2", "")) 
-
-with colC:
-    aplicar = st.button("⚙️ Aplicar Prompt PEC1")
-
-# --- Função de Chamada do Gemini ---
+# --- Função de Chamada do Gemini (Mantida) ---
 def gemini_reply(system_instruction, text_input):
     """Função para chamar o modelo Gemini com instruções de sistema."""
     
@@ -86,60 +53,102 @@ def gemini_reply(system_instruction, text_input):
         st.error(f"Erro inesperado: {e}")
         return f"ERRO INESPERADO: {e}"
 
-# --- Etapa 2: Aplicar Prompt PEC1 ---
-if aplicar and caixa1:
+# --- Funções de Callback (NOVAS) ---
+
+def apply_pec1():
+    """Callback para a Etapa 2: Aplica Prompt PEC1 e atualiza Caixa 2."""
+    if not st.session_state.get("caixa1"):
+        st.warning("A Caixa 1 está vazia. Insira a informação crua primeiro.")
+        return
+
     with st.spinner("Aplicando Prompt PEC1..."):
-        # Role do sistema para a Etapa 2
         system_role_pec1 = "Você é um assistente de processamento de texto. Sua tarefa é aplicar o 'Prompt PEC1 atualizado' ao texto de entrada, formatando e estruturando-o conforme as diretrizes do PEC1."
         
         st.session_state["caixa2"] = gemini_reply(
             system_role_pec1,
-            caixa1
+            st.session_state["caixa1"]
         )
         st.success("✅ Prompt aplicado!")
 
-# --- Etapa 3: Gerar Sugestões ---
-# Só exibe o botão se a Caixa 2 tiver conteúdo
+def generate_suggestions():
+    """Callback para a Etapa 3: Gerar Sugestões e atualizar Caixa 3."""
+    if not st.session_state.get("caixa2"):
+        st.warning("A Caixa 2 está vazia. Aplique o Prompt PEC1 (Etapa 2) primeiro.")
+        return
+
+    with st.spinner("Analisando diagnóstico..."):
+        system_role_sugestoes = "Você é um assistente médico de IA. Analise cuidadosamente o texto processado, que já está formatado com o Prompt PEC1, e gere sugestões de diagnósticos diferenciais e condutas médicas apropriadas. Seja claro, conciso e use linguagem médica profissional."
+        
+        st.session_state["caixa3"] = gemini_reply(
+            system_role_sugestoes,
+            st.session_state["caixa2"]
+        )
+        st.success("✅ Sugestões geradas!")
+
+def send_chat():
+    """Callback para a Etapa 4: Chat Livre e exibe resposta no Markdown."""
+    if not st.session_state.get("caixa4"):
+        st.warning("A Caixa 4 está vazia. Digite sua pergunta.")
+        return
+
+    with st.spinner("Respondendo..."):
+        system_role_chat = "Você é um assistente de chat geral e prestativo. Responda à pergunta do usuário. Mantenha o contexto de ser um assistente, mas responda de forma livre."
+        
+        resposta = gemini_reply(system_role_chat, st.session_state["caixa4"])
+        # Armazenamos a resposta em um novo campo para exibição, para não conflitar com a caixa de input
+        st.session_state["chat_response"] = resposta
+        
+# --- Inicializa o estado de exibição (IMPORTANTE) ---
+if "chat_response" not in st.session_state:
+    st.session_state["chat_response"] = ""
+
+
+# --- Layout das Caixas de Texto (usando st.session_state para pre-preencher) ---
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    # Usamos o valor do session_state, mas o key faz a mágica de sincronizar
+    st.text_area("CAIXA 1 - Informação Crua", value=st.session_state.get("caixa1", ""), height=250, key="caixa1")
+
+with col2:
+    st.text_area("CAIXA 2 - Prompt PEC1 Atualizado", value=st.session_state.get("caixa2", ""), height=250, key="caixa2")
+
+with col3:
+    st.text_area("CAIXA 3 - Sugestões e Discussão", value=st.session_state.get("caixa3", ""), height=250, key="caixa3")
+
+st.text_input("CAIXA 4 - Chat com Gemini", value=st.session_state.get("caixa4", ""), key="caixa4")
+
+# --- Layout dos Botões (AGORA USANDO CALLBACKS) ---
+colA, colB, colC = st.columns([1, 1, 2])
+
+with colA:
+    if st.button("🧹 LIMPAR"):
+        # O botão LIMPAR pode usar a lógica st.rerun() ou um callback, aqui mantemos a lógica original.
+        for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response"]:
+            st.session_state[key] = ""
+        st.rerun()
+
+with colB:
+    if st.button("📋 COPIAR CAIXA 2"):
+        st.write("Conteúdo da Caixa 2 copiado (copie manualmente abaixo):")
+        st.code(st.session_state.get("caixa2", "")) 
+
+with colC:
+    # O botão AGORA usa on_click=apply_pec1
+    st.button("⚙️ Aplicar Prompt PEC1", on_click=apply_pec1)
+
+# --- Botão Etapa 3 (Também usando Callback) ---
+# Exibimos o botão separadamente, e ele só aparece se a caixa 2 estiver preenchida.
 if st.session_state.get("caixa2"):
-    if st.button("💬 Gerar Sugestões (Caixa 3)"):
-        with st.spinner("Analisando diagnóstico..."):
-            # Role do sistema para a Etapa 3
-            system_role_sugestoes = "Você é um assistente médico de IA. Analise cuidadosamente o texto processado, que já está formatado com o Prompt PEC1, e gere sugestões de diagnósticos diferenciais e condutas médicas apropriadas. Seja claro, conciso e use linguagem médica profissional."
-            
-            st.session_state["caixa3"] = gemini_reply(
-                system_role_sugestoes,
-                st.session_state["caixa2"]
-            )
-            st.success("✅ Sugestões geradas!")
+    st.button("💬 Gerar Sugestões (Caixa 3)", on_click=generate_suggestions)
 
-# --- Etapa 4: Chat Livre ---
-if caixa4:
-    if st.button("💭 Enviar Chat (Caixa 4)"):
-        with st.spinner("Respondendo..."):
-            # Role do sistema para a Etapa 4
-            system_role_chat = "Você é um assistente de chat geral e prestativo. Responda à pergunta do usuário. Mantenha o contexto de ser um assistente, mas responda de forma livre."
-            
-            resposta = gemini_reply(system_role_chat, caixa4)
-            st.markdown(f"**Gemini:** {resposta}")
+# --- Botão Etapa 4 (Também usando Callback) ---
+# Exibimos o botão de chat e, se a resposta existir, exibimos o resultado abaixo.
+if st.session_state.get("caixa4"):
+    st.button("💭 Enviar Chat (Caixa 4)", on_click=send_chat)
 
-# --- ANOTAÇÕES HISTÓRICAS (MANTIDAS COMO COMENTÁRIOS) ---
-# O bloco de código abaixo estava causando um erro de sintaxe (duplicação de função e texto solto).
-# Ele foi removido e a função gemini_reply original (definida acima) foi mantida.
-#
-# # Modelo:
-# # Defini um modelo Gemini: GEMINI_MODEL = "gemini-2.5-flash". Você pode usar outro modelo, como gemini-2.5-pro, se precisar de raciocínio mais complexo.
-# # Função de Chamada (gemini_reply):
-# # Substituímos a chamada client.chat.completions.create(...) pela chamada client.models.generate_content(...).
-# # O papel do sistema (o role: "system") no Gemini é passado através do parâmetro config como system_instruction. Isso é crucial para as etapas 2 e 3.
-#
-# # A redefinição de gemini_reply abaixo foi removida:
-# # def gemini_reply(system_instruction, text_input):
-# #     config = genai.types.GenerateContentConfig(
-# #         system_instruction=system_instruction
-# #     )
-# #     response = client.models.generate_content(
-# #         model=GEMINI_MODEL,
-# #         contents=text_input,
-# #         config=config 
-# #     )
-# #     return response.text.strip()
+# --- Exibição do Resultado do Chat (Etapa 4) ---
+if st.session_state.get("chat_response"):
+    st.markdown("---")
+    st.markdown(f"**Gemini:** {st.session_state['chat_response']}")
+    st.markdown("---")
