@@ -17,7 +17,7 @@ Você é o assistente de documentação clínica PEC1. Sua única função é ge
 
 **PROIBIDO:** Introduções, comentários, numerações de itens, perguntas, ou qualquer texto fora da estrutura obrigatória.
 
-### **1. FORMATO DE SAÍDA OBRIGATÓRIO**
+### **1. FORMATO DE SAÍDA OBRIGATÓRIO (COM QUEBRAS DE LINHA REFORÇADAS)**
 
 Gere o registro **INTEIRAMENTE EM CAIXA ALTA** e nesta ordem. **Omita** a seção `AVALIAÇÃO MULTIDIMENSIONAL` se não for aplicável.
 
@@ -25,6 +25,7 @@ HMA: HPP: MUC: EX FISICO: AVALIAÇÃO MULTIDIMENSIONAL: EXAMES: HD: CONDUTA:
 
 VERIFICAÇÃO BEERS / STOPP-START:
 
+**GARANTIA DE ESTÉTICA:** As seções HMA, HD e CONDUTA DEVEM conter **UMA ÚNICA FRASE POR LINHA**. Use o caracter de quebra de linha normal (`\n` ou duas quebras de linha `\n\n`) para separar cada frase dentro dessas seções.
 
 ### **2. REGRAS DE EXCEÇÃO E MARCADORES TEMPORAIS**
 
@@ -223,11 +224,10 @@ with colD:
 if st.session_state.get("show_manual_copy"):
     if caixa2_has_content:
         st.markdown("### 📋 Bloco de Cópia - Formato Final (Caixa 2)")
-        st.warning("⚠️ **ATENÇÃO:** O bloco abaixo preserva as quebras de linha. Use o botão **'Copy' (dois quadrados)** no canto superior direito para copiar o texto com precisão.")
+        st.info("💡 **Dica:** O texto abaixo é formatado para ser o mais fiel possível ao ChatGPT. Use o botão **'Copy' (dois quadrados)** para garantir que as quebras de linha e os marcadores de Negrito/Itálico sejam copiados.")
         
-        # AJUSTE CRÍTICO: Removendo 'language="markdown"' para estabilizar o botão de cópia
-        # O Streamlit ainda preserva a formatação de linha, mas exibe um botão de cópia mais robusto.
-        st.code(st.session_state["caixa2"], language="text") # Usando 'text' ou omitindo 'language'
+        # O USO DE language="markdown" É O QUE MAIS SE APROXIMA DO VISUAL DO CHATGPT
+        st.code(st.session_state["caixa2"], language="markdown") 
         
     else:
         st.warning("A Caixa 2 está vazia. Não há conteúdo para copiar.")
