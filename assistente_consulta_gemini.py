@@ -11,7 +11,7 @@ GEMINI_MODEL = "gemini-2.5-flash"
 
 # --- PROMPTS COMO CONSTANTES (LIMPOS E COM ESTRUTURA REFORÇADA) ---
 
-# Prompt para a Etapa 2 (PEC1) - CORRIGIDO E COMPLETO
+# Prompt para a Etapa 2 (PEC1) - ESTRUTURAÇÃO MARKDOWN REFORÇADA
 SYSTEM_ROLE_PEC1 = """
 Você é o assistente de documentação clínica PEC1. Sua única função é gerar o registro clínico final. **Siga as regras de formatação e lógica estritamente**.
 
@@ -219,13 +219,16 @@ with colD:
               disabled=not caixa2_has_content)
 
 
-# --- EXIBIÇÃO DO BLOCO DE CÓPIA (Com formatação preservada) ---
+# --- EXIBIÇÃO DO BLOCO DE CÓPIA (Com formatação preservada e botão visível) ---
 if st.session_state.get("show_manual_copy"):
     if caixa2_has_content:
         st.markdown("### 📋 Bloco de Cópia - Formato Final (Caixa 2)")
-        st.warning("⚠️ **ATENÇÃO:** O bloco de código abaixo preserva as quebras de linha e formatação. Use o botão **'Copy' (dois quadrados)** no canto superior direito para copiar o texto com precisão.")
-        # Usamos st.code que respeita quebras de linha e tem botão de cópia nativo
-        st.code(st.session_state["caixa2"], language="markdown")
+        st.warning("⚠️ **ATENÇÃO:** O bloco abaixo preserva as quebras de linha. Use o botão **'Copy' (dois quadrados)** no canto superior direito para copiar o texto com precisão.")
+        
+        # AJUSTE CRÍTICO: Removendo 'language="markdown"' para estabilizar o botão de cópia
+        # O Streamlit ainda preserva a formatação de linha, mas exibe um botão de cópia mais robusto.
+        st.code(st.session_state["caixa2"], language="text") # Usando 'text' ou omitindo 'language'
+        
     else:
         st.warning("A Caixa 2 está vazia. Não há conteúdo para copiar.")
         st.session_state["show_manual_copy"] = False # Limpa a flag
