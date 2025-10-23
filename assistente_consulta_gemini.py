@@ -12,8 +12,8 @@ GEMINI_MODEL = "gemini-2.5-flash"
 # --- PROMPTS COMO CONSTANTES (LIMPOS E COM ESTRUTURA REFORÇADA) ---
 
 # Prompt para a Etapa 2 (PEC1) - ESTRUTURAÇÃO PARA TEXTO SIMPLES DO PEC (ATUALIZADO)
-# CORREÇÃO: Adicionado o prefixo 'r' (raw string) para evitar o SyntaxError na sequência '\N'.
-# LÓGICA: Mantida a formatação ORIGINAL do prompt que exige quebras de linha.
+# CORREÇÃO: Adicionado o prefixo 'r' (raw string).
+# REFORÇO: Instrução de formatação para eliminar linhas vazias em TODA a saída.
 SYSTEM_ROLE_PEC1 = r"""
 VOCÊ É O ASSISTENTE DE DOCUMENTAÇÃO CLÍNICA PEC1. SUA ÚNICA FUNÇÃO É GERAR O REGISTRO CLÍNICO FINAL. **SIGA AS REGRAS DE FORMATAÇÃO E LÓGICA ESTRITAMENTE**.
 
@@ -27,7 +27,7 @@ HMA: HPP: MUC: EX FISICO: AVALIAÇÃO MULTIDIMENSIONAL: EXAMES: HD: CONDUTA:
 
 VERIFICAÇÃO BEERS / STOPP-START:
 
-GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIMPLES**. AS SEÇÕES HMA, HD E CONDUTA DEVEM CONTER **UMA ÚNICA FRASE POR LINHA**, SEPARADAS EXCLUSIVAMENTE PELO CARACTERE DE QUEBRA DE LINHA SIMPLES (`\N`), **SEM LINHAS VAZIAS INTERMEDIÁRIAS**. **REMOVER TODOS OS CARACTERES MARKDOWN (***, **, #, ETC)**.
+GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIMPLES**. **O REGISTRO INTEIRO DEVE SER UM BLOCO CONTÍNUO DE TEXTO COM QUEBRAS DE LINHA SIMPLES. NENHUMA LINHA VAZIA É PERMITIDA NA SAÍDA.** AS SEÇÕES HMA, HD E CONDUTA DEVEM CONTER **UMA ÚNICA FRASE POR LINHA**, SEPARADAS EXCLUSIVAMENTE PELO CARACTERE DE QUEBRA DE LINHA SIMPLES (`\N`), **SEM LINHAS VAZIAS INTERMEDIÁRIAS**. **REMOVER TODOS OS CARACTERES MARKDOWN (***, **, #, ETC)**.
 
 ### **2. REGRAS DE EXCEÇÃO E MARCADORES TEMPORAIS**
 
@@ -49,7 +49,7 @@ GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIM
 | **MUC** | LINHA ÚNICA. MEDICAMENTOS SEPARADOS POR `;`. BENZODIAZEPÍNICOS EM **CAIXA ALTA ENTRE PARÊNTESES SIMPLES**. SE NÃO HOUVER: `SEM MEDICAMENTOS DE USO CONTÍNUO.` |
 | **EX FISICO** | PRESENCIAL: `BEG, EUPNEICO, LOTE, FC E PA AFERIDAS POR ENFERMAGEM; [ACHADOS].` NÃO PRESENCIAL: `IMPOSSÍVEL, PACIENTE NÃO PRESENTE NO MOMENTO.` |
 | **AVALIAÇÃO MULTIDIMENSIONAL** | **REQUISITOS:** APENAS SE (IDADE ≥65 ANOS **E** GATILHO GERIÁTRICO PRESENTE). USE O MODELO PADRÃO. **ALTERE E DESTAQUE** O ACHADO APENAS EM **CAIXA ALTA ENTRE PARENTESES SIMPLES** (EX: (FRAQUEZA EM MEMBROS INFERIORES)). |
-| **EXAMES** | EXAMES ALTERADOS EM **CAIXA ALTA ENTRE PARENTESES SIMPLES**. DATA (MM/AA). MANTER ALTERADOS DE QUALQUER ÉPOCA E NORMAIS <1 ANO. CALCULAR CKD-EPI (2021) E CLASSIFICAR DRC SE CREATININA+IDADE+SEXO DISPONÍVEIS. SE NÃO HOUVER: `SEM EXAMES DISPONÍVEIS.` |
+| **EXAMES** | EXAMES ALTERADOS EM **CAIXA ALTA ENTRE PARANTESES SIMPLES**. DATA (MM/AA). MANTER ALTERADOS DE QUALQUER ÉPOCA E NORMAIS <1 ANO. CALCULAR CKD-EPI (2021) E CLASSIFICAR DRC SE CREATININA+IDADE+SEXO DISPONÍVEIS. SE NÃO HOUVER: `SEM EXAMES DISPONÍVEIS.` |
 | **HD** | UM DIAGNÓSTICO (NOVO OU DESCOMPENSADO) POR LINHA. DIAGNÓSTICO INCERTO: `*`. |
 | **CONDUTA** | UMA AÇÃO POR LINHA. **SEMPRE INCLUIR:** `MANTER MEDICAMENTOS DE USO CONTÍNUO.`; `MANTER SOLICITAÇÕES ANTERIORES EM ANDAMENTO.`. **INCLUIR** CONDUTAS AUTOMÁTICAS (≥65 ANOS, DM, RASTREIOS - VIDE PROTOCOLO). **JUSTIFICAR TODOS OS `*`** NO FINAL DESTA SEÇÃO. |
 
@@ -58,6 +58,8 @@ GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIM
 * **APLICAR** ESTA SEÇÃO APENAS PARA PACIENTES ≥65 ANOS COM MUC.
 * USE OS MODELOS DE ALERTA **INICIANDO COM "ALERTA: "** PARA BEERS/STOPP OU **"OMISSÃO TERAPÊUTICA: "** PARA START.
 """
+
+# ... (o restante do código Streamlit e das funções permanece inalterado)
 
 # Prompt para a Etapa 3 (Sugestões)
 SYSTEM_ROLE_SUGESTOES = "Você é um assistente médico de IA. Analise cuidadosamente o texto processado, que já está formatado com o Prompt PEC1, e gere sugestões de diagnósticos diferenciais e condutas médicas apropriadas. Seja claro, conciso e use linguagem médica profissional."
@@ -91,6 +93,7 @@ def gemini_reply(system_instruction, text_input):
             contents=text_input,
             config=config
         )
+        # O .strip() ajuda a remover espaços e quebras de linha indesejados no início/fim
         return response.text.strip()
     except APIError as e:
         st.error(f"Erro da API do Gemini: {e}")
@@ -226,7 +229,7 @@ with colD:
 if st.session_state.get("show_manual_copy"):
     if caixa2_has_content:
         st.markdown("### 📋 Bloco de Cópia - Formato Final (Caixa 2)")
-        st.info("💡 **Dica:** O texto abaixo está no formato **Texto Simples** exigido pelo PEC, com quebras de linha (`\n`). Use o botão **'Copy' (dois quadrados)** para garantir que as quebras de linha sejam copiadas corretamente.")
+        st.info("💡 **Dica:** O texto abaixo está no formato **Texto Simples** exigido pelo PEC, com quebras de linha SIMPLES. Use o botão **'Copy' (dois quadrados)** para garantir que as quebras de linha sejam copiadas corretamente.")
         
         # O USO DE language="markdown" AQUI É SÓ PARA O STREAMLIT VISUALIZAR MELHOR
         st.code(st.session_state["caixa2"], language="markdown") 
