@@ -2,28 +2,29 @@ import streamlit as st
 from google import genai
 from google.genai.errors import APIError
 
-# --- AJUSTE CSS PARA REDUZIR ESPAÇO SUPERIOR E MARGENS ---
-# 1. DIMINUIR ESPAÇO SUPERIOR E SUBIR TUDO JUNTO
+# --- CONFIGURAÇÃO INICIAL E CONSTANTES ---
+# Define o layout wide para usar mais espaço horizontal
 st.set_page_config(page_title="ASSISTENTE DE CONSULTA GEMINI", layout="wide")
 
+# --- AJUSTE CSS PARA REDUZIR ESPAÇO SUPERIOR E MARGENS (OTIMIZAÇÃO VERTICAL) ---
+# Otimização do layout para reduzir espaço entre widgets e eliminar rolagem vertical
 st.markdown("""
     <style>
-    /* Remove espaço padrão acima do título */
+    /* Remove espaço padrão acima do título (principal ajuste para subir tudo) */
     .block-container {
         padding-top: 1rem; 
         padding-bottom: 0rem;
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    /* Diminui a margem inferior do título principal */
+    /* Reduz margens de título e widgets */
     h1 {
         margin-bottom: 0.5rem !important; 
     }
-    /* Reduz espaço entre widgets (caixas e botões) */
     .stText, .stTextArea, .stButton, .stTextInput, .stExpander {
         margin-bottom: 0.5rem !important; 
     }
-    /* Estilo para padronizar botões (Mantido do passo anterior) */
+    /* Estilo para padronizar todos os botões (altura fixa de 48px) */
     div.stButton > button {
         width: 100%;
         height: 48px; 
@@ -37,7 +38,7 @@ st.title("ASSISTENTE DE CONSULTA GEMINI")
 
 GEMINI_MODEL = "gemini-2.5-flash"
 
-# --- PROMPTS COMO CONSTANTES (INALTERADOS) ---
+# --- PROMPTS COMO CONSTANTES (COM REGRAS DE FORMATO FINAL DO PEC) ---
 
 SYSTEM_ROLE_PEC1 = r"""
 VOCÊ É O ASSISTENTE DE DOCUMENTAÇÃO CLÍNICA PEC1. SUA ÚNICA FUNÇÃO É GERAR O REGISTRO CLÍNICO FINAL. **SIGA AS REGRAS DE FORMATAÇÃO E LÓGICA ESTRITAMENTE**.
@@ -54,7 +55,7 @@ VERIFICAÇÃO BEERS / STOPP-START:
 
 GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIMPLES**. **REMOVER TODOS OS CARACTERES MARKDOWN (***, **, #, ETC)**.
 **AS REGRAS DE QUEBRA DE LINHA SÃO:**
-1. **RÓTULOS DE SEÇÃO** (HMA:, HPP:, MUC:, EX FISICO:, EXAMES:, HD:, CONDUTA:, VERIFICAÇÃO BEERS / STOPP-START:) DEVEM FICAR EM UMA **LINHA PRÓPRIA**.
+1. **RÓTULOS DE SEÇÃO** (HMA:, HPP:, MUC:, EX FISICO:, EXAMES:, HD:, CONDUTA:, VERIFICAÇÃO BEERS / STOPP-START:) DEVEM FICAR EM UNA **LINHA PRÓPRIA**.
 2. O CONTEÚDO DE CADA SEÇÃO COMEÇA NA LINHA IMEDIATAMENTE ABAIXO DO RÓTULO.
 3. DEVE HAVER **EXATAMENTE UMA LINHA VAZIA** APÓS A ÚLTIMA LINHA DE CONTEÚDO DE CADA SEÇÃO.
 
@@ -199,7 +200,7 @@ with st.expander("Ver Regras Completas do Prompt PEC1"):
 # --- LAYOUT DAS CAIXAS DE TEXTO ---
 col1, col2, col3 = st.columns(3)
 
-# 2. SUBIR TUDO JUNTO: Diminuindo a altura das caixas para caber mais na tela
+# Altura das caixas reduzida (height=200) para caber na visualização inicial
 with col1:
     st.text_area("SOAP", height=200, key="caixa1",
                  help="Insira aqui o texto de entrada (anotações, dados brutos, etc.)")
@@ -215,6 +216,7 @@ with col3:
 st.markdown("---") 
 
 # --- LAYOUT DOS BOTÕES DE CONTROLE ---
+# Colunas para alinhar e padronizar botões
 colA, colB, colC, colD = st.columns(4)
 
 caixa1_has_content = bool(st.session_state.get("caixa1", "").strip())
@@ -255,21 +257,14 @@ st.markdown("---")
 colE, colF = st.columns([5, 1])
 
 with colE:
+    # A visibilidade do label está oculta, o placeholder guia o usuário
     st.text_input("Pergunta para o Gemini", key="caixa4", label_visibility="collapsed",
                   placeholder="Chat Livre: Digite sua pergunta (ex: 'Qual a dose máxima de metformina?')",
                   help="Digite sua pergunta livre para o Gemini.")
 
 with colF:
-    # Alinhamento vertical do botão do chat
-    st.markdown("""
-    <style>
-    div.stButton#chat-button > button {
-        height: 38px; 
-        margin-top: -8px; 
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    # Ajuste de layout manual para o botão ENVIAR (para alinhar com o text_input)
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     st.button("ENVIAR", on_click=send_chat, disabled=not caixa4_has_content, key="chat-button")
 
 # --- EXIBIÇÃO DO RESULTADO DO CHAT (Etapa 4) ---
