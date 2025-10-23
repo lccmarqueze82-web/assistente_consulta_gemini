@@ -31,6 +31,10 @@ st.markdown("""
         padding-top: 10px !important;
         padding-bottom: 10px !important;
     }
+    /* Estilo para a caixa de input de chat (reduzindo altura superior) */
+    .stTextInput {
+        margin-top: 0.5rem !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -210,17 +214,19 @@ with st.expander("Ver Regras Completas do Prompt PEC1"):
 # --- LAYOUT DAS CAIXAS DE TEXTO ---
 col1, col2, col3 = st.columns(3)
 
-# Altura das caixas reduzida (height=200) para caber na visualização inicial
+# ALTURA OTIMIZADA PARA 120PX (REDUZINDO ESPAÇO)
+OPTIMIZED_HEIGHT = 120
+
 with col1:
-    st.text_area("SOAP (Informação Crua)", height=200, key="caixa1",
+    st.text_area("SOAP (Informação Crua)", height=OPTIMIZED_HEIGHT, key="caixa1",
                  help="Insira aqui o texto de entrada (anotações, dados brutos, etc.)")
 
 with col2:
-    st.text_area("CORRIGIDO (Formato PEC1)", height=200, key="caixa2",
+    st.text_area("CORRIGIDO (Formato PEC1)", height=OPTIMIZED_HEIGHT, key="caixa2",
                  help="Saída formatada do Gemini conforme as regras PEC1. Use o botão 'COPIAR' para obter o texto puro.")
 
 with col3:
-    st.text_area("Sugestões e Discussão", height=200, key="caixa3",
+    st.text_area("Sugestões e Discussão", height=OPTIMIZED_HEIGHT, key="caixa3",
                  help="Sugestões de diagnósticos, condutas e discussão geradas pelo Gemini.")
 
 st.markdown("---")
@@ -256,9 +262,10 @@ if st.session_state.get("show_manual_copy") and caixa2_has_content:
     st.markdown("### Bloco de Cópia - Formato Final (CORRIGIDO)")
     st.info("O texto abaixo está no formato Texto Simples exigido pelo PEC. **Use o botão de cópia (dois quadrados) no canto superior direito do campo** para garantir que o texto e as quebras de linha sejam copiados corretamente.")
 
-    # Ajusta a altura dinamicamente para melhor visualização (min: 200px, max: 600px)
+    # Ajusta a altura dinamicamente para melhor visualização (min: 150px, max: 600px)
     text_length = len(st.session_state["caixa2"].split('\n')) * 22
-    copy_height = max(200, min(600, text_length))
+    # Ajustei o mínimo para 150px, mantendo o máximo para não estourar a tela com um registro gigantesco
+    copy_height = max(150, min(600, text_length))
 
     # O st.text_area desabilitado é a melhor forma de garantir a cópia literal de texto puro
     st.text_area(
@@ -288,11 +295,13 @@ with colE:
 
 with colF:
     # Ajuste de layout manual para o botão ENVIAR (para alinhar com o text_input)
+    # A margem superior no CSS já ajuda a alinhar, aqui só garantimos o espaço.
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     st.button("ENVIAR", on_click=send_chat, disabled=not caixa4_has_content, key="chat-button")
 
 # --- EXIBIÇÃO DO RESULTADO DO CHAT (Etapa 4) ---
 if st.session_state.get("chat_response"):
     st.markdown("---")
+    # Para o chat, mantemos o st.markdown para renderizar a formatação da resposta do Gemini
     st.markdown(f"**Gemini Responde:** {st.session_state['chat_response']}")
     st.markdown("---")
