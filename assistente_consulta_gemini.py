@@ -2,16 +2,42 @@ import streamlit as st
 from google import genai
 from google.genai.errors import APIError
 
-# --- CONFIGURAÇÃO INICIAL E CONSTANTES ---
-# 2. Assistente de Consulta Gemini EM CAIXA ALTA
+# --- AJUSTE CSS PARA REDUZIR ESPAÇO SUPERIOR E MARGENS ---
+# 1. DIMINUIR ESPAÇO SUPERIOR E SUBIR TUDO JUNTO
 st.set_page_config(page_title="ASSISTENTE DE CONSULTA GEMINI", layout="wide")
 
-# 1. RETIRAR EMOJIS
+st.markdown("""
+    <style>
+    /* Remove espaço padrão acima do título */
+    .block-container {
+        padding-top: 1rem; 
+        padding-bottom: 0rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    /* Diminui a margem inferior do título principal */
+    h1 {
+        margin-bottom: 0.5rem !important; 
+    }
+    /* Reduz espaço entre widgets (caixas e botões) */
+    .stText, .stTextArea, .stButton, .stTextInput, .stExpander {
+        margin-bottom: 0.5rem !important; 
+    }
+    /* Estilo para padronizar botões (Mantido do passo anterior) */
+    div.stButton > button {
+        width: 100%;
+        height: 48px; 
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("ASSISTENTE DE CONSULTA GEMINI")
 
 GEMINI_MODEL = "gemini-2.5-flash"
 
-# --- PROMPTS COMO CONSTANTES (INALTERADOS APÓS ÚLTIMA CORREÇÃO DE FORMATO) ---
+# --- PROMPTS COMO CONSTANTES (INALTERADOS) ---
 
 SYSTEM_ROLE_PEC1 = r"""
 VOCÊ É O ASSISTENTE DE DOCUMENTAÇÃO CLÍNICA PEC1. SUA ÚNICA FUNÇÃO É GERAR O REGISTRO CLÍNICO FINAL. **SIGA AS REGRAS DE FORMATAÇÃO E LÓGICA ESTRITAMENTE**.
@@ -52,7 +78,7 @@ GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIM
 | **MUC** | LINHA ÚNICA. MEDICAMENTOS SEPARADOS POR `;`. BENZODIAZEPÍNICOS EM **CAIXA ALTA ENTRE PARÊNTESES SIMPLES**. SE NÃO HOUVER: `SEM MEDICAMENTOS DE USO CONTÍNUO.` |
 | **EX FISICO** | PRESENCIAL: `BEG, EUPNEICO, LOTE, FC E PA AFERIDAS POR ENFERMAGEM; [ACHADOS].` NÃO PRESENCIAL: `IMPOSSÍVEL, PACIENTE NÃO PRESENTE NO MOMENTO.` |
 | **AVALIAÇÃO MULTIDIMENSIONAL** | **REQUISITOS:** APENAS SE (IDADE ≥65 ANOS **E** GATILHO GERIÁTRICO PRESENTE). USE O MODELO PADRÃO. **ALTERE E DESTAQUE** O ACHADO APENAS EM **CAIXA ALTA ENTRE PARENTESES SIMPLES** (EX: (FRAQUEZA EM MEMBROS INFERIORES)). |
-| **EXAMES** | LINHA ÚNICA. EXAMES ALTERADOS EM **CAIXA ALTA ENTRE PARENTESES SIMPLES**. DATA (MM/AA). MANTER ALTERADOS DE QUALQUER ÉPOCA E NORMAIS <1 ANO. CALCULAR CKD-EPI (2021) E CLASSIFICAR DRC SE CREATININA+IDADE+SEXO DISPONÍVEIS. SE NÃO HOUVER: `SEM EXAMES DISPONÍVEIS.` |
+| **EXAMES** | LINHA ÚNICA. EXAMES ALTERADOS EM **CAIXA ALTA ENTRE PARANTESES SIMPLES**. DATA (MM/AA). MANTER ALTERADOS DE QUALQUER ÉPOCA E NORMAIS <1 ANO. CALCULAR CKD-EPI (2021) E CLASSIFICAR DRC SE CREATININA+IDADE+SEXO DISPONÍVEIS. SE NÃO HOUVER: `SEM EXAMES DISPONÍVEIS.` |
 | **HD** | UM DIAGNÓSTICO (NOVO OU DESCOMPENSADO) POR LINHA. DIAGNÓSTICO INCERTO: `*`. |
 | **CONDUTA** | UMA AÇÃO POR LINHA. **SEMPRE INCLUIR:** `MANTER MEDICAMENTOS DE USO CONTÍNUO.`; `MANTER SOLICITAÇÕES ANTERIORES EM ANDAMENTO.`. **INCLUIR** CONDUTAS AUTOMÁTICAS (≥65 ANOS, DM, RASTREIOS - VIDE PROTOCOLO). **JUSTIFICAR TODOS OS `*`** NO FINAL DESTA SEÇÃO. |
 
@@ -127,7 +153,7 @@ def apply_pec1():
             SYSTEM_ROLE_PEC1,
             st.session_state["caixa1"]
         )
-        st.success("✅ Prompt aplicado!")
+        st.success("Prompt aplicado!")
 
 def generate_suggestions():
     """Callback para a Etapa 3: Gerar Sugestões e atualizar Caixa 3."""
@@ -142,7 +168,7 @@ def generate_suggestions():
             SYSTEM_ROLE_SUGESTOES,
             st.session_state["caixa2"]
         )
-        st.success("✅ Sugestões geradas!")
+        st.success("Sugestões geradas!")
 
 def send_chat():
     """Callback para a Etapa 4: Chat Livre e exibe resposta no Markdown."""
@@ -163,8 +189,7 @@ def copy_caixa2_content():
 
 # --- MARCADOR E EXPANDER DAS REGRAS ---
 
-# 3. RETIRAR O TEXTO EXPLICATIVO
-st.markdown("---") # Separador visual
+st.markdown("---") 
 
 # Expander para as regras
 with st.expander("Ver Regras Completas do Prompt PEC1"):
@@ -174,67 +199,46 @@ with st.expander("Ver Regras Completas do Prompt PEC1"):
 # --- LAYOUT DAS CAIXAS DE TEXTO ---
 col1, col2, col3 = st.columns(3)
 
+# 2. SUBIR TUDO JUNTO: Diminuindo a altura das caixas para caber mais na tela
 with col1:
-    # 4. CAIXA 1 - Informação Crua - TROCAR POR SOAP
-    st.text_area("SOAP", height=250, key="caixa1",
+    st.text_area("SOAP", height=200, key="caixa1",
                  help="Insira aqui o texto de entrada (anotações, dados brutos, etc.)")
 
 with col2:
-    # 5. CAIXA 2 - Prompt PEC1 Atualizado - TROCA POR CORRIGIDO
-    st.text_area("CORRIGIDO", height=250, key="caixa2",
+    st.text_area("CORRIGIDO", height=200, key="caixa2",
                  help="Saída formatada do Gemini conforme as regras PEC1.")
 
 with col3:
-    st.text_area("Sugestões e Discussão", height=250, key="caixa3",
+    st.text_area("Sugestões e Discussão", height=200, key="caixa3",
                  help="Sugestões de diagnósticos, condutas e discussão geradas pelo Gemini.")
 
-st.markdown("---") # Separador visual
+st.markdown("---") 
 
 # --- LAYOUT DOS BOTÕES DE CONTROLE ---
-# 6. ALINHAR BOTOES e 7. DEIXAR BOTOES COM MESMAS DIMENSOES
-# Usaremos 4 colunas de tamanho igual (1, 1, 1, 1) para forçar o alinhamento
 colA, colB, colC, colD = st.columns(4)
-
-# Estilo CSS para forçar todos os botões a terem a mesma altura e largura,
-# e o texto do botão a alinhar no centro (melhor UX).
-st.markdown("""
-<style>
-div.stButton > button {
-    width: 100%;
-    height: 48px; 
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 
 caixa1_has_content = bool(st.session_state.get("caixa1", "").strip())
 caixa2_has_content = bool(st.session_state.get("caixa2", "").strip())
 caixa4_has_content = bool(st.session_state.get("caixa4", "").strip())
 
 with colA:
-    # Botão LIMPAR
     st.button("LIMPAR TUDO", on_click=clear_fields)
 
 with colB:
-    # Botão COPIAR
     label_copy = "OCULTAR CÓPIA" if st.session_state.get("show_manual_copy") else "COPIAR"
     st.button(label_copy, on_click=copy_caixa2_content, disabled=not caixa2_has_content,
               help="Alterna a visualização de um bloco de código com botão de cópia nativo.")
 
 with colC:
-    # Botão Etapa 2
     st.button("APLICAR PEC1", on_click=apply_pec1,
               disabled=not caixa1_has_content, help="Aplica o prompt de formatação PEC1 na Caixa 1 e envia para a Caixa 'CORRIGIDO'.")
 
 with colD:
-    # Botão Etapa 3
     st.button("GERAR SUGESTÕES", on_click=generate_suggestions,
               disabled=not caixa2_has_content, help="Gera sugestões de diagnóstico e conduta com base no texto da Caixa 'CORRIGIDO'.")
 
 
-# --- EXIBIÇÃO DO BLOCO DE CÓPIA (Com formatação preservada e botão visível) ---
+# --- EXIBIÇÃO DO BLOCO DE CÓPIA ---
 if st.session_state.get("show_manual_copy"):
     if caixa2_has_content:
         st.markdown("### Bloco de Cópia - Formato Final (CORRIGIDO)")
@@ -246,11 +250,8 @@ if st.session_state.get("show_manual_copy"):
 
 
 # --- CHAT LIVRE (CAIXA 4) E BOTÃO DE ENVIO ---
-st.markdown("---")
-# 8. 4. Chat Livre com Gemini - APAGAR (APENAS UM SEPARADOR SIMPLES)
+st.markdown("---") 
 
-# 9. TRAZER BARRA DE CHAT P IMEDIATAMENTE ABAIXO DAS OUTRAS CAIXAS ENFILEIRADAS.
-# O chat já está logo abaixo da seção de botões e cópia.
 colE, colF = st.columns([5, 1])
 
 with colE:
@@ -259,12 +260,12 @@ with colE:
                   help="Digite sua pergunta livre para o Gemini.")
 
 with colF:
-    # Forçando o botão do chat a ter a mesma altura da caixa de texto, para alinhamento.
+    # Alinhamento vertical do botão do chat
     st.markdown("""
     <style>
     div.stButton#chat-button > button {
         height: 38px; 
-        margin-top: -8px; /* Ajusta a margem para alinhar com o text_input */
+        margin-top: -8px; 
     }
     </style>
     """, unsafe_allow_html=True)
