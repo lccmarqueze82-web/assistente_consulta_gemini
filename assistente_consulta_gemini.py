@@ -2,49 +2,12 @@ import streamlit as st
 from google import genai
 from google.genai.errors import APIError
 
-# --- CONFIGURAÇÃO INICIAL E CONSTANTES ---
-# Define o layout wide para usar mais espaço horizontal
-st.set_page_config(page_title="ASSISTENTE DE CONSULTA GEMINI", layout="wide")
-
-# --- AJUSTE CSS PARA REDUZIR ESPAÇO SUPERIOR E MARGENS (OTIMIZAÇÃO VERTICAL) ---
-# Otimização do layout para reduzir espaço entre widgets e eliminar rolagem vertical
-st.markdown("""
-    <style>
-    /* Remove espaço padrão acima do título (principal ajuste para subir tudo) */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    /* Reduz margens de título e widgets */
-    h1 {
-        margin-bottom: 0.5rem !important;
-    }
-    .stText, .stTextArea, .stButton, .stTextInput, .stExpander {
-        margin-bottom: 0.5rem !important;
-    }
-    /* Estilo para padronizar todos os botões (altura fixa de 48px) */
-    div.stButton > button {
-        width: 100%;
-        height: 48px;
-        padding-top: 10px !important;
-        padding-bottom: 10px !important;
-    }
-    /* Estilo para a caixa de input de chat (reduzindo altura superior) */
-    .stTextInput {
-        margin-top: 0.5rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("ASSISTENTE DE CONSULTA GEMINI")
-
-GEMINI_MODEL = "gemini-2.5-flash"
+# --- CONSTANTE DE CHAVE DE SESSÃO PARA AS REGRAS ---
+SESSION_KEY_PEC1 = "SYSTEM_ROLE_PEC1_EDITED"
 
 # --- PROMPTS COMO CONSTANTES (COM REGRAS DE FORMATO FINAL DO PEC) ---
-
-SYSTEM_ROLE_PEC1 = r"""
+# Mantenho a constante original, mas o app usará a versão em st.session_state
+SYSTEM_ROLE_PEC1_DEFAULT = r"""
 VOCÊ É O ASSISTENTE DE DOCUMENTAÇÃO CLÍNICA PEC1. SUA ÚNICA FUNÇÃO É GERAR O REGISTRO CLÍNICO FINAL. **SIGA AS REGRAS DE FORMATAÇÃO E LÓGICA ESTRITAMENTE**.
 
 **PROIBIDO:** INTRODUÇÕES, COMENTÁRIOS, NUMERAÇÕES DE ITENS, PERGUNTAS, OU QUALQUER TEXTO FORA DA ESTRUTURA OBRIGATÓRIA.
@@ -73,13 +36,13 @@ GARANTIA DE ESTÉTICA: O REGISTRO DEVE SER GERADO INTEGRALMENTE COMO **TEXTO SIM
 ### **2. REGRAS DE EXCEÇÃO E MARCADORES TEMPORAIS**
 
 * **RENOVAÇÃO NÃO PRESENCIAL (##01/##02):**
-    * **##01:** HMA: "RENOVAÇÃO NÃO PRESENCIAL DE RECEITA." | EX FISICO: "IMPOSSÍVEL, PACIENTE NÃO PRESENTE NO MOMENTO." | CONDUTA: INCLUIR "ORIENTADA A COMPARECER À CONSULTA AGENDADA." E "CÓDIGO DE ÉTICA MÉDICA – ARTIGO 37."
-    * **##02 (FORA DE ÁREA):** IGUAL AO ##01, MAS HMA: "RENOVAÇÃO NÃO PRESENCIAL DE RECEITA; IDENTIFICAÇÃO DE PACIENTE FORA DE ÁREA." | CONDUTA: ADICIONAR "ATUALIZAR ENDEREÇO DO PACIENTE NO CADASTRO."
+    * **##01:** HMA: "RENOVAÇÃO NÃO PRESENCIAL DE RECEITA." | EX FISICO: "IMPOSSÍVEL, PACIENTE NÃO PRESENTE NO MOMENTO." | CONDUTA: INCLUIR "ORIENTADA A COMPARECER À CONSULTA AGENDADA." E "CÓDIGO DE ÉTICA MÉDICA – ARTIGO 37."
+    * **##02 (FORA DE ÁREA):** IGUAL AO ##01, MAS HMA: "RENOVAÇÃO NÃO PRESENCIAL DE RECEITA; IDENTIFICAÇÃO DE PACIENTE FORA DE ÁREA." | CONDUTA: ADICIONAR "ATUALIZAR ENDEREÇO DO PACIENTE NO CADASTRO."
 * **RENOVAÇÃO NÃO PRESENCIAL CONSECUTIVA (REGRA FINAL):**
-    * **SE** O ATENDIMENTO ATUAL FOR **##01 OU ##02 E** O ATENDIMENTO ANTERIOR TAMBÉM FOI **##01 OU ##02**, **ENTÃO SUBSTITUA** `HD:` E `CONDUTA:` POR:
-        * HD: `SOLICITAÇÃO DE RENOVAÇÃO NÃO PRESENCIAL DE RECEITA MUC (SEGUNDO EPISÓDIO).`
-        * CONDUTA: `SUGIRO AGENDAMENTO DE CONSULTA PRESENCIAL. CÓDIGO DE ÉTICA MÉDICA – ARTIGO 37: É VEDADO PRESCREVER SEM AVALIAÇÃO DIRETA DO PACIENTE, EXCETO EM SITUAÇÕES DE URGÊNCIA OU EM CASO DE CONTINUIDADE DE TRATAMENTO JÁ INICIADO.`
-    * **NÃO** APLIQUE CONDUTAS AUTOMÁTICAS (≥65 ANOS, DM, RASTREIOS) NESTE CASO.
+    * **SE** O ATENDIMENTO ATUAL FOR **##01 OU ##02 E** O ATENDIMENTO ANTERIOR TAMBÉM FOI **##01 OU ##02**, **ENTÃO SUBSTITUA** `HD:` E `CONDUTA:` POR:
+        * HD: `SOLICITAÇÃO DE RENOVAÇÃO NÃO PRESENCIAL DE RECEITA MUC (SEGUNDO EPISÓDIO).`
+        * CONDUTA: `SUGIRO AGENDAMENTO DE CONSULTA PRESENCIAL. CÓDIGO DE ÉTICA MÉDICA – ARTIGO 37: É VEDADO PRESCREVER SEM AVALIAÇÃO DIRETA DO PACIENTE, EXCETO EM SITUAÇÕES DE URGÊNCIA OU EM CASO DE CONTINUIDADE DE TRATAMENTO JÁ INICIADO.`
+    * **NÃO** APLIQUE CONDUTAS AUTOMÁTICAS (≥65 ANOS, DM, RASTREIOS) NESTE CASO.
 
 ### **3. REGRAS POR SEÇÃO**
 
@@ -104,6 +67,95 @@ SYSTEM_ROLE_SUGESTOES = "Você é um assistente médico de IA. Analise cuidadosa
 
 SYSTEM_ROLE_CHAT = "Você é um assistente de chat geral e prestativo. Responda à pergunta do usuário. Mantenha o contexto de ser um assistente, mas responda de forma livre."
 
+# --- FUNÇÕES DE CALLBACK ---
+
+def clear_fields():
+    """Callback para a função LIMPAR: Reseta todos os campos de estado da sessão."""
+    for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response", "show_manual_copy"]:
+        # Reset para valor vazio ou False
+        st.session_state[key] = "" if key != "show_manual_copy" else False
+    # Manter a regra personalizada se existir, senão resetar para o padrão
+    if SESSION_KEY_PEC1 in st.session_state:
+        st.session_state[SESSION_KEY_PEC1] = SYSTEM_ROLE_PEC1_DEFAULT
+
+def save_pec1_role():
+    """Callback para salvar o texto editado do prompt PEC1 na sessão."""
+    # O valor do text_area é acessado via key 'pec1_editor'
+    st.session_state[SESSION_KEY_PEC1] = st.session_state.pec1_editor
+    st.success("Regras PEC1 salvas com sucesso para esta sessão!", icon="💾")
+
+def get_current_pec1_role():
+    """Retorna o prompt PEC1 atual (editado ou padrão)."""
+    if SESSION_KEY_PEC1 not in st.session_state:
+        st.session_state[SESSION_KEY_PEC1] = SYSTEM_ROLE_PEC1_DEFAULT
+    return st.session_state[SESSION_KEY_PEC1]
+
+# --- CONFIGURAÇÃO INICIAL ---
+
+# Define o layout wide para usar mais espaço horizontal
+st.set_page_config(page_title="ASSISTENTE DE CONSULTA GEMINI", layout="wide")
+
+
+# --- AJUSTE CSS PARA VISUAL (COR DE FUNDO, TÍTULO, BOTÕES, CAIXAS) ---
+st.markdown(f"""
+    <style>
+    /* 1. COR DE FUNDO DA PÁGINA (AZUL CLARO) */
+    .stApp {{
+        background-color: #E6F7FF; /* Um azul claro suave */
+    }}
+
+    /* Remove padding default do Streamlit para subir o conteúdo */
+    .block-container {{
+        padding-top: 0.5rem; /* Reduz de 1rem para 0.5rem */
+        padding-bottom: 0rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }}
+
+    /* 2. ESPAÇO DO TÍTULO (DIMINUIÇÃO DE 50%) */
+    h1 {{
+        margin-top: 0.5rem !important; /* Reduz espaço superior */
+        margin-bottom: 0.5rem !important; /* Reduz espaço inferior */
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }}
+
+    /* 3. ESTILO GERAL DE BOTÕES (FUNDO ROSA, TEXTO PRETO NEGRITO) */
+    div.stButton > button {{
+        width: 100%;
+        height: 48px;
+        background-color: #FFC0CB; /* Rosa */
+        color: black !important;
+        font-weight: bold;
+        border: 1px solid #FF69B4; /* Borda rosa escura */
+        transition: background-color 0.2s;
+    }}
+    div.stButton > button:hover {{
+        background-color: #FF69B4; /* Rosa mais escuro no hover */
+        color: white !important;
+    }}
+
+    /* 4. ESTILO DAS CAIXAS DE TEXTO (TEXTO PRETO NEGRITO) */
+    .stTextArea, .stTextInput {{
+        color: black;
+        font-weight: bold;
+    }}
+
+    /* Ajuste para text_input de chat (alinhar com botão) */
+    .stTextInput {{
+        margin-top: 0.5rem !important;
+    }}
+    
+    /* Outros ajustes de margem */
+    .stText, .stExpander {{
+        margin-bottom: 0.5rem !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+st.title("ASSISTENTE DE CONSULTA GEMINI")
+
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # --- INICIALIZAÇÃO DO CLIENTE GEMINI ---
 try:
@@ -117,7 +169,7 @@ except Exception as e:
     st.stop()
 
 
-# --- FUNÇÃO DE CHAMADA DO GEMINI ---
+# --- FUNÇÃO DE CHAMADA DO GEMINI (USANDO A REGRA ATUAL) ---
 def gemini_reply(system_instruction, text_input):
     """Função para chamar o modelo Gemini com instruções de sistema."""
     
@@ -142,18 +194,10 @@ def gemini_reply(system_instruction, text_input):
 
 # --- INICIALIZAÇÃO DO ESTADO DE SESSÃO ---
 # Inicializa todas as chaves do st.session_state
-for key in ["caixa1", "caixa2", "caixa3", "caixa4", "chat_response", "show_manual_copy"]:
+for key in ["caixa1", "caixa2", "caixa3", "caixa4", "chat_response", "show_manual_copy", SESSION_KEY_PEC1]:
     if key not in st.session_state:
-        st.session_state[key] = False if key == "show_manual_copy" else ""
+        st.session_state[key] = SYSTEM_ROLE_PEC1_DEFAULT if key == SESSION_KEY_PEC1 else (False if key == "show_manual_copy" else "")
 
-
-# --- FUNÇÕES DE CALLBACK ---
-
-def clear_fields():
-    """Callback para a função LIMPAR: Reseta todos os campos de estado da sessão."""
-    for key in ["caixa1","caixa2","caixa3","caixa4", "chat_response", "show_manual_copy"]:
-        # Reset para valor vazio ou False
-        st.session_state[key] = "" if key != "show_manual_copy" else False
 
 def apply_pec1():
     """Callback para a Etapa 2: Aplica Prompt PEC1 e atualiza Caixa 2."""
@@ -163,12 +207,16 @@ def apply_pec1():
 
     st.session_state["show_manual_copy"] = False
 
+    # Captura a regra atual (padrão ou editada)
+    current_role = get_current_pec1_role()
+
     with st.spinner("Aplicando Prompt PEC1..."):
         st.session_state["caixa2"] = gemini_reply(
-            SYSTEM_ROLE_PEC1,
+            current_role,
             st.session_state["caixa1"]
         )
-        # st.success("Prompt aplicado!", icon="✅") # Mensagem de sucesso opcional
+
+# (Outras funções de callback permanecem as mesmas)
 
 def generate_suggestions():
     """Callback para a Etapa 3: Gerar Sugestões e atualizar Caixa 3."""
@@ -183,7 +231,6 @@ def generate_suggestions():
             SYSTEM_ROLE_SUGESTOES,
             st.session_state["caixa2"]
         )
-        # st.success("Sugestões geradas!", icon="💡") # Mensagem de sucesso opcional
 
 def send_chat():
     """Callback para a Etapa 4: Chat Livre e exibe resposta no Markdown."""
@@ -202,19 +249,13 @@ def copy_caixa2_content():
     st.session_state["show_manual_copy"] = not st.session_state.get("show_manual_copy", False)
 
 
-# --- MARCADOR E EXPANDER DAS REGRAS ---
-
-st.markdown("---")
-
-# Expander para as regras
-with st.expander("Ver Regras Completas do Prompt PEC1"):
-    st.code(SYSTEM_ROLE_PEC1, language="markdown")
-
-
 # --- LAYOUT DAS CAIXAS DE TEXTO ---
+
+st.markdown("---") # Separador visual
+
 col1, col2, col3 = st.columns(3)
 
-# ALTURA OTIMIZADA PARA 120PX (REDUZINDO ESPAÇO)
+# ALTURA OTIMIZADA PARA 120PX
 OPTIMIZED_HEIGHT = 120
 
 with col1:
@@ -232,7 +273,6 @@ with col3:
 st.markdown("---")
 
 # --- LAYOUT DOS BOTÕES DE CONTROLE ---
-# Colunas para alinhar e padronizar botões
 colA, colB, colC, colD = st.columns(4)
 
 # Verifica conteúdo para habilitar/desabilitar botões
@@ -260,14 +300,11 @@ with colD:
 # --- EXIBIÇÃO DO BLOCO DE CÓPIA (USANDO ST.TEXT_AREA DESABILITADO) ---
 if st.session_state.get("show_manual_copy") and caixa2_has_content:
     st.markdown("### Bloco de Cópia - Formato Final (CORRIGIDO)")
-    st.info("O texto abaixo está no formato Texto Simples exigido pelo PEC. **Use o botão de cópia (dois quadrados) no canto superior direito do campo** para garantir que o texto e as quebras de linha sejam copiados corretamente.")
+    st.info("O texto abaixo está no formato Texto Simples exigido pelo PEC. **Use o botão de cópia (dois quadrados) no canto superior direito do campo** para garantir que o texto e as quebras de linha sejam copiadas corretamente.")
 
-    # Ajusta a altura dinamicamente para melhor visualização (min: 150px, max: 600px)
     text_length = len(st.session_state["caixa2"].split('\n')) * 22
-    # Ajustei o mínimo para 150px, mantendo o máximo para não estourar a tela com um registro gigantesco
     copy_height = max(150, min(600, text_length))
 
-    # O st.text_area desabilitado é a melhor forma de garantir a cópia literal de texto puro
     st.text_area(
         "Cópia Final",
         value=st.session_state["caixa2"],
@@ -277,7 +314,6 @@ if st.session_state.get("show_manual_copy") and caixa2_has_content:
         label_visibility="collapsed"
     )
 elif st.session_state.get("show_manual_copy") and not caixa2_has_content:
-    # Se o botão foi clicado, mas a caixa 2 está vazia
     st.warning("A Caixa CORRIGIDO está vazia. Não há conteúdo para copiar.")
     st.session_state["show_manual_copy"] = False
 
@@ -288,20 +324,34 @@ st.markdown("---")
 colE, colF = st.columns([5, 1])
 
 with colE:
-    # A visibilidade do label está oculta, o placeholder guia o usuário
     st.text_input("Pergunta para o Gemini", key="caixa4", label_visibility="collapsed",
                   placeholder="Chat Livre: Digite sua pergunta (ex: 'Qual a dose máxima de metformina?')",
                   help="Digite sua pergunta livre para o Gemini.")
 
 with colF:
-    # Ajuste de layout manual para o botão ENVIAR (para alinhar com o text_input)
-    # A margem superior no CSS já ajuda a alinhar, aqui só garantimos o espaço.
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     st.button("ENVIAR", on_click=send_chat, disabled=not caixa4_has_content, key="chat-button")
 
 # --- EXIBIÇÃO DO RESULTADO DO CHAT (Etapa 4) ---
 if st.session_state.get("chat_response"):
     st.markdown("---")
-    # Para o chat, mantemos o st.markdown para renderizar a formatação da resposta do Gemini
     st.markdown(f"**Gemini Responde:** {st.session_state['chat_response']}")
     st.markdown("---")
+
+
+# --- MARCADOR E EXPANDER DAS REGRAS (DESLOCADO PARA O FINAL DA PÁGINA) ---
+st.markdown("---")
+
+with st.expander("📝 Editar Regras do Prompt PEC1 (ATENÇÃO: Mude apenas se souber o que está fazendo)"):
+    st.warning("⚠️ **AVISO:** Esta alteração só é válida para **esta sessão**. Para mudanças permanentes, edite o código-fonte.")
+    
+    # Text Area editável, preenchido com a regra atual
+    st.text_area(
+        "Edite o System Role (Prompt de Sistema) para o PEC1:",
+        value=get_current_pec1_role(),
+        height=400,
+        key="pec1_editor" # Chave usada na função save_pec1_role
+    )
+    
+    # Botão para salvar as alterações na sessão
+    st.button("SALVAR REGRAS (Apenas nesta Sessão)", on_click=save_pec1_role)
